@@ -4,7 +4,9 @@ from demo_api_test.src.dao.products_dao import ProductsDAO
 from demo_api_test.src.helpers.products_helper import ProductsHelper
 
 
-@pytest.mark.products
+pytestmark = [pytest.mark.products, pytest.mark.smoke]
+
+
 @pytest.mark.tcid24
 def test_get_all_products():
     req_obj = RequestUtilities()
@@ -13,7 +15,6 @@ def test_get_all_products():
     assert res_get, f"Response of list all products is empty."
 
 
-@pytest.mark.products
 @pytest.mark.tcid25
 def test_get_product_by_id():
     # get productid from db
