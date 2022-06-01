@@ -1,0 +1,7 @@
+credentials.bat
+.pytest_cache/
+build/
+demo_api_test.egg-info/
+dist/
+Virtual_Env/
+

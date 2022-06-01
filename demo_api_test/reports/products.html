@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Test Report</title>
+    <link href="assets/style.css" rel="stylesheet" type="text/css"/></head>
+  <body onLoad="init()">
+    <script>/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+
+function toArray(iter) {
+    if (iter === null) {
+        return null;
+    }
+    return Array.prototype.slice.call(iter);
+}
+
+function find(selector, elem) { // eslint-disable-line no-redeclare
+    if (!elem) {
+        elem = document;
+    }
+    return elem.querySelector(selector);
+}
+
+function findAll(selector, elem) {
+    if (!elem) {
+        elem = document;
+    }
+    return toArray(elem.querySelectorAll(selector));
+}
+
+function sortColumn(elem) {
+    toggleSortStates(elem);
+    const colIndex = toArray(elem.parentNode.childNodes).indexOf(elem);
+    let key;
+    if (elem.classList.contains('result')) {
+        key = keyResult;
+    } else if (elem.classList.contains('links')) {
+        key = keyLink;
+    } else {
+        key = keyAlpha;
+    }
+    sortTable(elem, key(colIndex));
+}
+
+function showAllExtras() { // eslint-disable-line no-unused-vars
+    findAll('.col-result').forEach(showExtras);
+}
+
+function hideAllExtras() { // eslint-disable-line no-unused-vars
+    findAll('.col-result').forEach(hideExtras);
+}
+
+function showExtras(colresultElem) {
+    const extras = colresultElem.parentNode.nextElementSibling;
+    const expandcollapse = colresultElem.firstElementChild;
+    extras.classList.remove('collapsed');
+    expandcollapse.classList.remove('expander');
+    expandcollapse.classList.add('collapser');
+}
+
+function hideExtras(colresultElem) {
+    const extras = colresultElem.parentNode.nextElementSibling;
+    const expandcollapse = colresultElem.firstElementChild;
+    extras.classList.add('collapsed');
+    expandcollapse.classList.remove('collapser');
+    expandcollapse.classList.add('expander');
+}
+
+function showFilters() {
+    const filterItems = document.getElementsByClassName('filter');
+    for (let i = 0; i < filterItems.length; i++)
+        filterItems[i].hidden = false;
+}
+
+function addCollapse() {
+    // Add links for show/hide all
+    const resulttable = find('table#results-table');
+    const showhideall = document.createElement('p');
+    showhideall.innerHTML = '<a href="javascript:showAllExtras()">Show all details</a> / ' +
+                            '<a href="javascript:hideAllExtras()">Hide all details</a>';
+    resulttable.parentElement.insertBefore(showhideall, resulttable);
+
+    // Add show/hide link to each result
+    findAll('.col-result').forEach(function(elem) {
+        const collapsed = getQueryParameter('collapsed') || 'Passed';
+        const extras = elem.parentNode.nextElementSibling;
+        const expandcollapse = document.createElement('span');
+        if (extras.classList.contains('collapsed')) {
+            expandcollapse.classList.add('expander');
+        } else if (collapsed.includes(elem.innerHTML)) {
+            extras.classList.add('collapsed');
+            expandcollapse.classList.add('expander');
+        } else {
+            expandcollapse.classList.add('collapser');
+        }
+        elem.appendChild(expandcollapse);
+
+        elem.addEventListener('click', function(event) {
+            if (event.currentTarget.parentNode.nextElementSibling.classList.contains('collapsed')) {
+                showExtras(event.currentTarget);
+            } else {
+                hideExtras(event.currentTarget);
+            }
+        });
+    });
+}
+
+function getQueryParameter(name) {
+    const match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+    return match && decodeURIComponent(match[1].replace(/\+/g, ' '));
+}
+
+function init () { // eslint-disable-line no-unused-vars
+    resetSortHeaders();
+
+    addCollapse();
+
+    showFilters();
+
+    sortColumn(find('.initial-sort'));
+
+    findAll('.sortable').forEach(function(elem) {
+        elem.addEventListener('click',
+            function() {
+                sortColumn(elem);
+            }, false);
+    });
+}
+
+function sortTable(clicked, keyFunc) {
+    const rows = findAll('.results-table-row');
+    const reversed = !clicked.classList.contains('asc');
+    const sortedRows = sort(rows, keyFunc, reversed);
+    /* Whole table is removed here because browsers acts much slower
+     * when appending existing elements.
+     */
+    const thead = document.getElementById('results-table-head');
+    document.getElementById('results-table').remove();
+    const parent = document.createElement('table');
+    parent.id = 'results-table';
+    parent.appendChild(thead);
+    sortedRows.forEach(function(elem) {
+        parent.appendChild(elem);
+    });
+    document.getElementsByTagName('BODY')[0].appendChild(parent);
+}
+
+function sort(items, keyFunc, reversed) {
+    const sortArray = items.map(function(item, i) {
+        return [keyFunc(item), i];
+    });
+
+    sortArray.sort(function(a, b) {
+        const keyA = a[0];
+        const keyB = b[0];
+
+        if (keyA == keyB) return 0;
+
+        if (reversed) {
+            return keyA < keyB ? 1 : -1;
+        } else {
+            return keyA > keyB ? 1 : -1;
+        }
+    });
+
+    return sortArray.map(function(item) {
+        const index = item[1];
+        return items[index];
+    });
+}
+
+function keyAlpha(colIndex) {
+    return function(elem) {
+        return elem.childNodes[1].childNodes[colIndex].firstChild.data.toLowerCase();
+    };
+}
+
+function keyLink(colIndex) {
+    return function(elem) {
+        const dataCell = elem.childNodes[1].childNodes[colIndex].firstChild;
+        return dataCell == null ? '' : dataCell.innerText.toLowerCase();
+    };
+}
+
+function keyResult(colIndex) {
+    return function(elem) {
+        const strings = ['Error', 'Failed', 'Rerun', 'XFailed', 'XPassed',
+            'Skipped', 'Passed'];
+        return strings.indexOf(elem.childNodes[1].childNodes[colIndex].firstChild.data);
+    };
+}
+
+function resetSortHeaders() {
+    findAll('.sort-icon').forEach(function(elem) {
+        elem.parentNode.removeChild(elem);
+    });
+    findAll('.sortable').forEach(function(elem) {
+        const icon = document.createElement('div');
+        icon.className = 'sort-icon';
+        icon.textContent = 'vvv';
+        elem.insertBefore(icon, elem.firstChild);
+        elem.classList.remove('desc', 'active');
+        elem.classList.add('asc', 'inactive');
+    });
+}
+
+function toggleSortStates(elem) {
+    //if active, toggle between asc and desc
+    if (elem.classList.contains('active')) {
+        elem.classList.toggle('asc');
+        elem.classList.toggle('desc');
+    }
+
+    //if inactive, reset all other functions and add ascending active
+    if (elem.classList.contains('inactive')) {
+        resetSortHeaders();
+        elem.classList.remove('inactive');
+        elem.classList.add('active');
+    }
+}
+
+function isAllRowsHidden(value) {
+    return value.hidden == false;
+}
+
+function filterTable(elem) { // eslint-disable-line no-unused-vars
+    const outcomeAtt = 'data-test-result';
+    const outcome = elem.getAttribute(outcomeAtt);
+    const classOutcome = outcome + ' results-table-row';
+    const outcomeRows = document.getElementsByClassName(classOutcome);
+
+    for(let i = 0; i < outcomeRows.length; i++){
+        outcomeRows[i].hidden = !elem.checked;
+    }
+
+    const rows = findAll('.results-table-row').filter(isAllRowsHidden);
+    const allRowsHidden = rows.length == 0 ? true : false;
+    const notFoundMessage = document.getElementById('not-found-message');
+    notFoundMessage.hidden = !allRowsHidden;
+}
+</script>
+    <h1>products.html</h1>
+    <p>Report generated on 27-May-2022 at 11:54:57 by <a href="https://pypi.python.org/pypi/pytest-html">pytest-html</a> v3.1.1</p>
+    <h2>Environment</h2>
+    <table id="environment">
+      <tr>
+        <td>JAVA_HOME</td>
+        <td>C:\Program Files\Java\jdk-11.0.12</td></tr>
+      <tr>
+        <td>Packages</td>
+        <td>{"pluggy": "1.0.0", "py": "1.11.0", "pytest": "7.1.1"}</td></tr>
+      <tr>
+        <td>Platform</td>
+        <td>Windows-10-10.0.19044-SP0</td></tr>
+      <tr>
+        <td>Plugins</td>
+        <td>{"html": "3.1.1", "metadata": "2.0.1"}</td></tr>
+      <tr>
+        <td>Python</td>
+        <td>3.10.0</td></tr></table>
+    <h2>Summary</h2>
+    <p>1 tests ran in 5.34 seconds. </p>
+    <p class="filter" hidden="true">(Un)check the boxes to filter the results.</p><input checked="true" class="filter" data-test-result="passed" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="passed">1 passed</span>, <input checked="true" class="filter" data-test-result="skipped" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="skipped">0 skipped</span>, <input checked="true" class="filter" data-test-result="failed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="failed">0 failed</span>, <input checked="true" class="filter" data-test-result="error" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="error">0 errors</span>, <input checked="true" class="filter" data-test-result="xfailed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="xfailed">0 expected failures</span>, <input checked="true" class="filter" data-test-result="xpassed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="xpassed">0 unexpected passes</span>
+    <h2>Results</h2>
+    <table id="results-table">
+      <thead id="results-table-head">
+        <tr>
+          <th class="sortable result initial-sort" col="result">Result</th>
+          <th class="sortable" col="name">Test</th>
+          <th class="sortable" col="duration">Duration</th>
+          <th class="sortable links" col="links">Links</th></tr>
+        <tr hidden="true" id="not-found-message">
+          <th colspan="4">No results found. Try to check the filters</th></tr></thead>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td class="col-name">test/Products/test_get_products_smoke.py::test_get_all_products</td>
+          <td class="col-duration">4.78</td>
+          <td class="col-links"></td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>DEBUG    requests_oauthlib.oauth1_auth:oauth1_auth.py:77 Signing request &lt;PreparedRequest [GET]&gt; using client &lt;Client client_key=ck_da962047c4fca89c37e8228586c58e019ee8d9da, client_secret=****, resource_owner_key=None, resource_owner_secret=None, signature_method=HMAC-SHA1, signature_type=AUTH_HEADER, callback_uri=None, rsa_key=None, verifier=None, realm=None, encoding=utf-8, decoding=utf-8, nonce=None, timestamp=None&gt;
+DEBUG    requests_oauthlib.oauth1_auth:oauth1_auth.py:91 Including body in call to sign: False
+DEBUG    oauthlib.oauth1.rfc5849:__init__.py:171 Collected params: [(&#x27;oauth_nonce&#x27;, &#x27;145464507387321670701653632692&#x27;), (&#x27;oauth_timestamp&#x27;, &#x27;1653632692&#x27;), (&#x27;oauth_version&#x27;, &#x27;1.0&#x27;), (&#x27;oauth_signature_method&#x27;, &#x27;HMAC-SHA1&#x27;), (&#x27;oauth_consumer_key&#x27;, &#x27;ck_da962047c4fca89c37e8228586c58e019ee8d9da&#x27;)]
+DEBUG    oauthlib.oauth1.rfc5849:__init__.py:175 Normalized params: oauth_consumer_key=ck_da962047c4fca89c37e8228586c58e019ee8d9da&amp;oauth_nonce=145464507387321670701653632692&amp;oauth_signature_method=HMAC-SHA1&amp;oauth_timestamp=1653632692&amp;oauth_version=1.0
+DEBUG    oauthlib.oauth1.rfc5849:__init__.py:176 Normalized URI: http://localhost:8888/demosite/wp-json/wc/v3/products
+DEBUG    oauthlib.oauth1.rfc5849:__init__.py:181 Signing: signature base string: GET&amp;http%3A%2F%2Flocalhost%3A8888%2Fdemosite%2Fwp-json%2Fwc%2Fv3%2Fproducts&amp;oauth_consumer_key%3Dck_da962047c4fca89c37e8228586c58e019ee8d9da%26oauth_nonce%3D145464507387321670701653632692%26oauth_signature_method%3DHMAC-SHA1%26oauth_timestamp%3D1653632692%26oauth_version%3D1.0
+DEBUG    oauthlib.oauth1.rfc5849:__init__.py:188 Signature: DGWlBvGRvz4tyw6RTjqLeiIhIGM=
+DEBUG    oauthlib.oauth1.rfc5849:__init__.py:358 Encoding URI, headers and body to utf-8.
+DEBUG    requests_oauthlib.oauth1_auth:oauth1_auth.py:114 Updated url: http://localhost:8888/demosite/wp-json/wc/v3/products
+DEBUG    requests_oauthlib.oauth1_auth:oauth1_auth.py:115 Updated headers: {b&#x27;User-Agent&#x27;: b&#x27;python-requests/2.27.1&#x27;, b&#x27;Accept-Encoding&#x27;: b&#x27;gzip, deflate&#x27;, b&#x27;Accept&#x27;: b&#x27;*/*&#x27;, b&#x27;Connection&#x27;: b&#x27;keep-alive&#x27;, b&#x27;content-type&#x27;: b&#x27;application/json&#x27;, b&#x27;Content-Length&#x27;: b&#x27;4&#x27;, b&#x27;Authorization&#x27;: b&#x27;OAuth oauth_nonce=&quot;145464507387321670701653632692&quot;, oauth_timestamp=&quot;1653632692&quot;, oauth_version=&quot;1.0&quot;, oauth_signature_method=&quot;HMAC-SHA1&quot;, oauth_consumer_key=&quot;ck_da962047c4fca89c37e8228586c58e019ee8d9da&quot;, oauth_signature=&quot;DGWlBvGRvz4tyw6RTjqLeiIhIGM%3D&quot;&#x27;}
+DEBUG    requests_oauthlib.oauth1_auth:oauth1_auth.py:116 Updated body: &#x27;null&#x27;
+DEBUG    urllib3.connectionpool:connectionpool.py:228 Starting new HTTP connection (1): localhost:8888
+DEBUG    urllib3.connectionpool:connectionpool.py:456 http://localhost:8888 &quot;GET /demosite/wp-json/wc/v3/products HTTP/1.1&quot; 200 2919
+DEBUG    root:request_utilities.py:48 GET API response: [{&#x27;id&#x27;: 34, &#x27;name&#x27;: &#x27;Logo Collection&#x27;, &#x27;slug&#x27;: &#x27;logo-collection&#x27;, &#x27;permalink&#x27;: &#x27;http://localhost:8888/demosite/product/logo-collection/&#x27;, &#x27;date_created&#x27;: &#x27;2019-01-16T13:01:55&#x27;, &#x27;date_created_gmt&#x27;: &#x27;2019-01-16T13:01:55&#x27;, &#x27;date_modified&#x27;: &#x27;2019-01-16T13:01:55&#x27;, &#x27;date_modified_gmt&#x27;: &#x27;2019-01-16T13:01:55&#x27;, &#x27;type&#x27;: &#x27;grouped&#x27;, &#x27;status&#x27;: &#x27;publish&#x27;, &#x27;featured&#x27;: False, &#x27;catalog_visibility&#x27;: &#x27;visible&#x27;, &#x27;description&#x27;: &#x27;&lt;p&gt;Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Vestibulum tortor quam, feugiat vitae, ultricies eget, tempor sit amet, ante. Donec eu libero sit amet quam egestas semper. Aenean ultricies mi vitae est. Mauris placerat eleifend leo.&lt;/p&gt;\n&#x27;, &#x27;short_description&#x27;: &#x27;&lt;p&gt;This is a grouped product.&lt;/p&gt;\n&#x27;, &#x27;sku&#x27;: &#x27;logo-collection&#x27;, &#x27;price&#x27;: &#x27;18&#x27;, &#x27;regular_price&#x27;: &#x27;&#x27;, &#x27;sale_price&#x27;: &#x27;&#x27;, &#x27;date_on_sale_from&#x27;: None, &#x27;date_on_sale_from_gmt&#x27;: None, &#x27;date_on_sale_to&#x27;: None, &#x27;date_on_sale_to_gmt&#x27;: None, &#x27;on_sale&#x27;: False, &#x27;purchasable&#x27;: False, &#x27;total_sales&#x27;: 0, &#x27;virtual&#x27;: False, &#x27;downloadable&#x27;: False, &#x27;downloads&#x27;: [], &#x27;download_limit&#x27;: 0, &#x27;download_expiry&#x27;: 0, &#x27;external_url&#x27;: &#x27;&#x27;, &#x27;button_text&#x27;: &#x27;&#x27;, &#x27;tax_status&#x27;: &#x27;taxable&#x27;, &#x27;tax_class&#x27;: &#x27;&#x27;, &#x27;manage_stock&#x27;: False, &#x27;stock_quantity&#x27;: None, &#x27;backorders&#x27;: &#x27;no&#x27;, &#x27;backorders_allowed&#x27;: False, &#x27;backordered&#x27;: False, &#x27;low_stock_amount&#x27;: None, &#x27;sold_individually&#x27;: False, &#x27;weight&#x27;: &#x27;&#x27;, &#x27;dimensions&#x27;: {&#x27;length&#x27;: &#x27;&#x27;, &#x27;width&#x27;: &#x27;&#x27;, &#x27;height&#x27;: &#x27;&#x27;}, &#x27;shipping_required&#x27;: True, &#x27;shipping_taxable&#x27;: True, &#x27;shipping_class&#x27;: &#x27;&#x27;, &#x27;shipping_class_id&#x27;: 0, &#x27;reviews_allowed&#x27;: True, &#x27;average_rating&#x27;: &#x27;0.00&#x27;, &#x27;rating_count&#x27;: 0, &#x27;upsell_ids&#x27;: [], &#x27;cross_sell_ids&#x27;: [], &#x27;parent_id&#x27;: 0, &#x27;purchase_note&#x27;: &#x27;&#x27;, &#x27;categories&#x27;: [{&#x27;id&#x27;: 28, &#x27;name&#x27;: &#x27;Clothing&#x27;, &#x27;slug&#x27;: &#x27;clothing&#x27;}], &#x27;tags&#x27;: [], &#x27;images&#x27;: [{&#x27;id&#x27;: 57, &#x27;date_created&#x27;: &#x27;2019-01-16T13:02:13&#x27;, &#x27;date_created_gmt&#x27;: &#x27;2019-01-16T13:02:13&#x27;, &#x27;date_modified&#x27;: &#x27;2019-01-16T13:02:13&#x27;, &#x27;date_modified_gmt&#x27;: &#x27;2019-01-16T13:02:13&#x27;, &#x27;src&#x27;: &#x27;http://localhost:8888/demosite/wp-content/uploads/2019/01/logo-1.jpg&#x27;, &#x27;name&#x27;: &#x27;logo-1.jpg&#x27;, &#x27;alt&#x27;: &#x27;&#x27;}, {&#x27;id&#x27;: 50, &#x27;date_created&#x27;: &#x27;2019-01-16T13:02:06&#x27;, &#x27;date_created_gmt&#x27;: &#x27;2019-01-16T13:02:06&#x27;, &#x27;date_modified&#x27;: &#x27;2019-01-16T13:02:06&#x27;, &#x27;date_modified_gmt&#x27;: &#x27;2019-01-16T13:02:06&#x27;, &#x27;src&#x27;: &#x27;http://localhost:8888/demosite/wp-content/uploads/2019/01/hoodie-with-zipper-2.jpg&#x27;, &#x27;name&#x27;: &#x27;hoodie-with-zipper-2.jpg&#x27;, &#x27;alt&#x27;: &#x27;&#x27;}, {&#x27;id&#x27;: 49, &#x27;date_created&#x27;: &#x27;2019-01-16T13:02:06&#x27;, &#x27;date_created_gmt&#x27;: &#x27;2019-01-16T13:02:06&#x27;, &#x27;date_modified&#x27;: &#x27;2019-01-16T13:02:06&#x27;, &#x27;date_modified_gmt&#x27;: &#x27;2019-01-16T13:02:06&#x27;, &#x27;src&#x27;: &#x27;http://localhost:8888/demosite/wp-content/uploads/2019/01/hoodie-with-pocket-2.jpg&#x27;, &#x27;name&#x27;: &#x27;hoodie-with-pocket-2.jpg&#x27;, &#x27;alt&#x27;: &#x27;&#x27;}, {&#x27;id&#x27;: 37, &#x27;date_created&#x27;: &#x27;2019-01-16T13:01:56&#x27;, &#x27;date_created_gmt&#x27;: &#x27;2019-01-16T13:01:56&#x27;, &#x27;date_modified&#x27;: &#x27;2019-01-16T13:01:56&#x27;, &#x27;date_modified_gmt&#x27;: &#x27;2019-01-16T13:01:56&#x27;, &#x27;src&#x27;: &#x27;http://localhost:8888/demosite/wp-content/uploads/2019/01/vneck-tee-2.jpg&#x27;, &#x27;name&#x27;: &#x27;vneck-tee-2.jpg&#x27;, &#x27;alt&#x27;: &#x27;&#x27;}], &#x27;attributes&#x27;: [], &#x27;default_attributes&#x27;: [], &#x27;variations&#x27;: [], &#x27;grouped_products&#x27;: [8, 9, 10], &#x27;menu_order&#x27;: 0, &#x27;price_html&#x27;: &#x27;&#x27;, &#x27;related_ids&#x27;: [], &#x27;meta_data&#x27;: [], &#x27;stock_status&#x27;: &#x27;instock&#x27;, &#x27;has_options&#x27;: False, &#x27;_links&#x27;: {&#x27;self&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:8888/demosite/wp-json/wc/v3/products/34&#x27;}], &#x27;collection&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:8888/demosite/wp-json/wc/v3/products&#x27;}]}}, {&#x27;id&#x27;: 32, &#x27;name&#x27;: &#x27;T-Shirt with Logo&#x27;, &#x27;slug&#x27;: &#x27;t-shirt-with-logo&#x27;, &#x27;permalink&#x27;: &#x27;http://localhost:8888/demosite/product/t-shirt-with-logo/&#x27;, &#x27;date_created&#x27;: &#x27;2019-01-16T13:01:55&#x27;, &#x27;date_created_gmt&#x27;: &#x27;2019-01-16T13:01:55&#x27;, &#x27;date_modified&#x27;: &#x27;2019-01-16T13:01:55&#x27;, &#x27;date_modified_gmt&#x27;: &#x27;2019-01-16T13:01:55&#x27;, &#x27;type&#x27;: &#x27;simple&#x27;, &#x27;status&#x27;: &#x27;publish&#x27;, &#x27;featured&#x27;: False, &#x27;catalog_visibility&#x27;: &#x27;visible&#x27;, &#x27;description&#x27;: &#x27;&lt;p&gt;Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Vestibulum tortor quam, feugiat vitae, ultricies eget, tempor sit amet, ante. Donec eu libero sit amet quam egestas semper. Aenean ultricies mi vitae est. Mauris placerat eleifend leo.&lt;/p&gt;\n&#x27;, &#x27;short_description&#x27;: &#x27;&lt;p&gt;This is a simple product.&lt;/p&gt;\n&#x27;, &#x27;sku&#x27;: &#x27;Woo-tshirt-logo&#x27;, &#x27;price&#x27;: &#x27;18&#x27;, &#x27;regular_price&#x27;: &#x27;18&#x27;, &#x27;sale_price&#x27;: &#x27;&#x27;, &#x27;date_on_sale_from&#x27;: None, &#x27;date_on_sale_from_gmt&#x27;: None, &#x27;date_on_sale_to&#x27;: None, &#x27;date_on_sale_to_gmt&#x27;: None, &#x27;on_sale&#x27;: False, &#x27;purchasable&#x27;: True, &#x27;total_sales&#x27;: 0, &#x27;virtual&#x27;: False, &#x27;downloadable&#x27;: False, &#x27;downloads&#x27;: [], &#x27;download_limit&#x27;: 0, &#x27;download_expiry&#x27;: 0, &#x27;external_url&#x27;: &#x27;&#x27;, &#x27;button_text&#x27;: &#x27;&#x27;, &#x27;tax_status&#x27;: &#x27;taxable&#x27;, &#x27;tax_class&#x27;: &#x27;&#x27;, &#x27;manage_stock&#x27;: False, &#x27;stock_quantity&#x27;: None, &#x27;backorders&#x27;: &#x27;no&#x27;, &#x27;backorders_allowed&#x27;: False, &#x27;backordered&#x27;: False, &#x27;low_stock_amount&#x27;: None, &#x27;sold_individually&#x27;: False, &#x27;weight&#x27;: &#x27;0.5&#x27;, &#x27;dimensions&#x27;: {&#x27;length&#x27;: &#x27;10&#x27;, &#x27;width&#x27;: &#x27;12&#x27;, &#x27;height&#x27;: &#x27;0.5&#x27;}, &#x27;shipping_required&#x27;: True, &#x27;shipping_taxable&#x27;: True, &#x27;shipping_class&#x27;: &#x27;&#x27;, &#x27;shipping_class_id&#x27;: 0, &#x27;reviews_allowed&#x27;: True, &#x27;average_rating&#x27;: &#x27;0.00&#x27;, &#x27;rating_count&#x27;: 0, &#x27;upsell_ids&#x27;: [], &#x27;cross_sell_ids&#x27;: [], &#x27;parent_id&#x27;: 0, &#x27;purchase_note&#x27;: &#x27;&#x27;, &#x27;categories&#x27;: [{&#x27;id&#x27;: 22, &#x27;name&#x27;: &#x27;Tshirts&#x27;, &#x27;slug&#x27;: &#x27;tshirts&#x27;}], &#x27;tags&#x27;: [], &#x27;images&#x27;: [{&#x27;id&#x27;: 55, &#x27;date_created&#x27;: &#x27;2019-01-16T13:02:11&#x27;, &#x27;date_created_gmt&#x27;: &#x27;2019-01-16T13:02:11&#x27;, &#x27;date_modified&#x27;: &#x27;2019-01-16T13:02:11&#x27;, &#x27;date_modified_gmt&#x27;: &#x27;2019-01-16T13:02:11&#x27;, &#x27;src&#x27;: &#x27;http://localhost:8888/demosite/wp-content/uploads/2019/01/t-shirt-with-logo-1.jpg&#x27;, &#x27;name&#x27;: &#x27;t-shirt-with-logo-1.jpg&#x27;, &#x27;alt&#x27;: &#x27;&#x27;}], &#x27;attributes&#x27;: [{&#x27;id&#x27;: 1, &#x27;name&#x27;: &#x27;color&#x27;, &#x27;position&#x27;: 0, &#x27;visible&#x27;: True, &#x27;variation&#x27;: False, &#x27;options&#x27;: [&#x27;Gray&#x27;]}], &#x27;default_attributes&#x27;: [], &#x27;variations&#x27;: [], &#x27;grouped_products&#x27;: [], &#x27;menu_order&#x27;: 0, &#x27;price_html&#x27;: &#x27;&lt;span class=&quot;woocommerce-Price-amount amount&quot;&gt;&lt;bdi&gt;&lt;span class=&quot;woocommerce-Price-currencySymbol&quot;&gt;&amp;#8377;&lt;/span&gt;18.00&lt;/bdi&gt;&lt;/span&gt;&#x27;, &#x27;related_ids&#x27;: [23, 22, 12, 15], &#x27;meta_data&#x27;: [], &#x27;stock_status&#x27;: &#x27;instock&#x27;, &#x27;has_options&#x27;: False, &#x27;_links&#x27;: {&#x27;self&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:8888/demosite/wp-json/wc/v3/products/32&#x27;}], &#x27;collection&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:8888/demosite/wp-json/wc/v3/products&#x27;}]}}, {&#x27;id&#x27;: 33, &#x27;name&#x27;: &#x27;Beanie with Logo&#x27;, &#x27;slug&#x27;: &#x27;beanie-with-logo&#x27;, &#x27;permalink&#x27;: &#x27;http://localhost:8888/demosite/product/beanie-with-logo/&#x27;, &#x27;date_created&#x27;: &#x27;2019-01-16T13:01:55&#x27;, &#x27;date_created_gmt&#x27;: &#x27;2019-01-16T13:01:55&#x27;, &#x27;date_modified&#x27;: &#x27;2019-01-16T13:01:55&#x27;, &#x27;date_modified_gmt&#x27;: &#x27;2019-01-16T13:01:55&#x27;, &#x27;type&#x27;: &#x27;simple&#x27;, &#x27;status&#x27;: &#x27;publish&#x27;, &#x27;featured&#x27;: False, &#x27;catalog_visibility&#x27;: &#x27;visible&#x27;, &#x27;description&#x27;: &#x27;&lt;p&gt;Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Vestibulum tortor quam, feugiat vitae, ultricies eget, tempor sit amet, ante. Donec eu libero sit amet quam egestas semper. Aenean ultricies mi vitae est. Mauris placerat eleifend leo.&lt;/p&gt;\n&#x27;, &#x27;short_description&#x27;: &#x27;&lt;p&gt;This is a simple product.&lt;/p&gt;\n&#x27;, &#x27;sku&#x27;: &#x27;Woo-beanie-logo&#x27;, &#x27;price&#x27;: &#x27;18&#x27;, &#x27;regular_price&#x27;: &#x27;20&#x27;, &#x27;sale_price&#x27;: &#x27;18&#x27;, &#x27;date_on_sale_from&#x27;: None, &#x27;date_on_sale_from_gmt&#x27;: None, &#x27;date_on_sale_to&#x27;: None, &#x27;date_on_sale_to_gmt&#x27;: None, &#x27;on_sale&#x27;: True, &#x27;purchasable&#x27;: True, &#x27;total_sales&#x27;: 0, &#x27;virtual&#x27;: False, &#x27;downloadable&#x27;: False, &#x27;downloads&#x27;: [], &#x27;download_limit&#x27;: 0, &#x27;download_expiry&#x27;: 0, &#x27;external_url&#x27;: &#x27;&#x27;, &#x27;button_text&#x27;: &#x27;&#x27;, &#x27;tax_status&#x27;: &#x27;taxable&#x27;, &#x27;tax_class&#x27;: &#x27;&#x27;, &#x27;manage_stock&#x27;: False, &#x27;stock_quantity&#x27;: None, &#x27;backorders&#x27;: &#x27;no&#x27;, &#x27;backorders_allowed&#x27;: False, &#x27;backordered&#x27;: False, &#x27;low_stock_amount&#x27;: None, &#x27;sold_individually&#x27;: False, &#x27;weight&#x27;: &#x27;0.2&#x27;, &#x27;dimensions&#x27;: {&#x27;length&#x27;: &#x27;6&#x27;, &#x27;width&#x27;: &#x27;4&#x27;, &#x27;height&#x27;: &#x27;1&#x27;}, &#x27;shipping_required&#x27;: True, &#x27;shipping_taxable&#x27;: True, &#x27;shipping_class&#x27;: &#x27;&#x27;, &#x27;shipping_class_id&#x27;: 0, &#x27;reviews_allowed&#x27;: True, &#x27;average_rating&#x27;: &#x27;0.00&#x27;, &#x27;rating_count&#x27;: 0, &#x27;upsell_ids&#x27;: [], &#x27;cross_sell_ids&#x27;: [], &#x27;parent_id&#x27;: 0, &#x27;purchase_note&#x27;: &#x27;&#x27;, &#x27;categories&#x27;: [{&#x27;id&#x27;: 25, &#x27;name&#x27;: &#x27;Accessories&#x27;, &#x27;slug&#x27;: &#x27;accessories&#x27;}], &#x27;tags&#x27;: [], &#x27;images&#x27;: [{&#x27;id&#x27;: 56, &#x27;date_created&#x27;: &#x27;2019-01-16T13:02:12&#x27;, &#x27;date_created_gmt&#x27;: &#x27;2019-01-16T13:02:12&#x27;, &#x27;date_modified&#x27;: &#x27;2019-01-16T13:02:12&#x27;, &#x27;date_modified_gmt&#x27;: &#x27;2019-01-16T13:02:12&#x27;, &#x27;src&#x27;: &#x27;http://localhost:8888/demosite/wp-content/uploads/2019/01/beanie-with-logo-1.jpg&#x27;, &#x27;name&#x27;: &#x27;beanie-with-logo-1.jpg&#x27;, &#x27;alt&#x27;: &#x27;&#x27;}], &#x27;attributes&#x27;: [{&#x27;id&#x27;: 1, &#x27;name&#x27;: &#x27;color&#x27;, &#x27;position&#x27;: 0, &#x27;visible&#x27;: True, &#x27;variation&#x27;: False, &#x27;options&#x27;: [&#x27;Red&#x27;]}], &#x27;default_attributes&#x27;: [], &#x27;variations&#x27;: [], &#x27;grouped_products&#x27;: [], &#x27;menu_order&#x27;: 0, &#x27;price_html&#x27;: &#x27;&lt;del aria-hidden=&quot;true&quot;&gt;&lt;span class=&quot;woocommerce-Price-amount amount&quot;&gt;&lt;bdi&gt;&lt;span class=&quot;woocommerce-Price-currencySymbol&quot;&gt;&amp;#8377;&lt;/span&gt;20.00&lt;/bdi&gt;&lt;/span&gt;&lt;/del&gt; &lt;ins&gt;&lt;span class=&quot;woocommerce-Price-amount amount&quot;&gt;&lt;bdi&gt;&lt;span class=&quot;woocommerce-Price-currencySymbol&quot;&gt;&amp;#8377;&lt;/span&gt;18.00&lt;/bdi&gt;&lt;/span&gt;&lt;/ins&gt;&#x27;, &#x27;related_ids&#x27;: [17, 18, 16, 19], &#x27;meta_data&#x27;: [], &#x27;stock_status&#x27;: &#x27;instock&#x27;, &#x27;has_options&#x27;: False, &#x27;_links&#x27;: {&#x27;self&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:8888/demosite/wp-json/wc/v3/products/33&#x27;}], &#x27;collection&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:8888/demosite/wp-json/wc/v3/products&#x27;}]}}, {&#x27;id&#x27;: 35, &#x27;name&#x27;: &#x27;WordPress Pennant&#x27;, &#x27;slug&#x27;: &#x27;wordpress-pennant&#x27;, &#x27;permalink&#x27;: &#x27;http://localhost:8888/demosite/product/wordpress-pennant/&#x27;, &#x27;date_created&#x27;: &#x27;2019-01-16T13:01:55&#x27;, &#x27;date_created_gmt&#x27;: &#x27;2019-01-16T13:01:55&#x27;, &#x27;date_modified&#x27;: &#x27;2019-01-16T13:01:55&#x27;, &#x27;date_modified_gmt&#x27;: &#x27;2019-01-16T13:01:55&#x27;, &#x27;type&#x27;: &#x27;external&#x27;, &#x27;status&#x27;: &#x27;publish&#x27;, &#x27;featured&#x27;: False, &#x27;catalog_visibility&#x27;: &#x27;visible&#x27;, &#x27;description&#x27;: &#x27;&lt;p&gt;Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Vestibulum tortor quam, feugiat vitae, ultricies eget, tempor sit amet, ante. Donec eu libero sit amet quam egestas semper. Aenean ultricies mi vitae est. Mauris placerat eleifend leo.&lt;/p&gt;\n&#x27;, &#x27;short_description&#x27;: &#x27;&lt;p&gt;This is an external product.&lt;/p&gt;\n&#x27;, &#x27;sku&#x27;: &#x27;wp-pennant&#x27;, &#x27;price&#x27;: &#x27;11.05&#x27;, &#x27;regular_price&#x27;: &#x27;11.05&#x27;, &#x27;sale_price&#x27;: &#x27;&#x27;, &#x27;date_on_sale_from&#x27;: None, &#x27;date_on_sale_from_gmt&#x27;: None, &#x27;date_on_sale_to&#x27;: None, &#x27;date_on_sale_to_gmt&#x27;: None, &#x27;on_sale&#x27;: False, &#x27;purchasable&#x27;: False, &#x27;total_sales&#x27;: 0, &#x27;virtual&#x27;: False, &#x27;downloadable&#x27;: False, &#x27;downloads&#x27;: [], &#x27;download_limit&#x27;: 0, &#x27;download_expiry&#x27;: 0, &#x27;external_url&#x27;: &#x27;https://mercantile.wordpress.org/product/wordpress-pennant/&#x27;, &#x27;button_text&#x27;: &#x27;Buy on the WordPress swag store!&#x27;, &#x27;tax_status&#x27;: &#x27;taxable&#x27;, &#x27;tax_class&#x27;: &#x27;&#x27;, &#x27;manage_stock&#x27;: False, &#x27;stock_quantity&#x27;: None, &#x27;backorders&#x27;: &#x27;no&#x27;, &#x27;backorders_allowed&#x27;: False, &#x27;backordered&#x27;: False, &#x27;low_stock_amount&#x27;: None, &#x27;sold_individually&#x27;: False, &#x27;weight&#x27;: &#x27;&#x27;, &#x27;dimensions&#x27;: {&#x27;length&#x27;: &#x27;&#x27;, &#x27;width&#x27;: &#x27;&#x27;, &#x27;height&#x27;: &#x27;&#x27;}, &#x27;shipping_required&#x27;: True, &#x27;shipping_taxable&#x27;: True, &#x27;shipping_class&#x27;: &#x27;&#x27;, &#x27;shipping_class_id&#x27;: 0, &#x27;reviews_allowed&#x27;: True, &#x27;average_rating&#x27;: &#x27;0.00&#x27;, &#x27;rating_count&#x27;: 0, &#x27;upsell_ids&#x27;: [], &#x27;cross_sell_ids&#x27;: [], &#x27;parent_id&#x27;: 0, &#x27;purchase_note&#x27;: &#x27;&#x27;, &#x27;categories&#x27;: [{&#x27;id&#x27;: 29, &#x27;name&#x27;: &#x27;Decor&#x27;, &#x27;slug&#x27;: &#x27;decor&#x27;}], &#x27;tags&#x27;: [], &#x27;images&#x27;: [{&#x27;id&#x27;: 58, &#x27;date_created&#x27;: &#x27;2019-01-16T13:02:13&#x27;, &#x27;date_created_gmt&#x27;: &#x27;2019-01-16T13:02:13&#x27;, &#x27;date_modified&#x27;: &#x27;2019-01-16T13:02:13&#x27;, &#x27;date_modified_gmt&#x27;: &#x27;2019-01-16T13:02:13&#x27;, &#x27;src&#x27;: &#x27;http://localhost:8888/demosite/wp-content/uploads/2019/01/pennant-1.jpg&#x27;, &#x27;name&#x27;: &#x27;pennant-1.jpg&#x27;, &#x27;alt&#x27;: &#x27;&#x27;}], &#x27;attributes&#x27;: [], &#x27;default_attributes&#x27;: [], &#x27;variations&#x27;: [], &#x27;grouped_products&#x27;: [], &#x27;menu_order&#x27;: 0, &#x27;price_html&#x27;: &#x27;&lt;span class=&quot;woocommerce-Price-amount amount&quot;&gt;&lt;bdi&gt;&lt;span class=&quot;woocommerce-Price-currencySymbol&quot;&gt;&amp;#8377;&lt;/span&gt;11.05&lt;/bdi&gt;&lt;/span&gt;&#x27;, &#x27;related_ids&#x27;: [], &#x27;meta_data&#x27;: [], &#x27;stock_status&#x27;: &#x27;instock&#x27;, &#x27;has_options&#x27;: False, &#x27;_links&#x27;: {&#x27;self&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:8888/demosite/wp-json/wc/v3/products/35&#x27;}], &#x27;collection&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:8888/demosite/wp-json/wc/v3/products&#x27;}]}}, {&#x27;id&#x27;: 25, &#x27;name&#x27;: &#x27;Single&#x27;, &#x27;slug&#x27;: &#x27;single&#x27;, &#x27;permalink&#x27;: &#x27;http://localhost:8888/demosite/product/single/&#x27;, &#x27;date_created&#x27;: &#x27;2019-01-16T13:01:54&#x27;, &#x27;date_created_gmt&#x27;: &#x27;2019-01-16T13:01:54&#x27;, &#x27;date_modified&#x27;: &#x27;2019-01-16T13:01:54&#x27;, &#x27;date_modified_gmt&#x27;: &#x27;2019-01-16T13:01:54&#x27;, &#x27;type&#x27;: &#x27;simple&#x27;, &#x27;status&#x27;: &#x27;publish&#x27;, &#x27;featured&#x27;: False, &#x27;catalog_visibility&#x27;: &#x27;visible&#x27;, &#x27;description&#x27;: &#x27;&lt;p&gt;Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum sagittis orci ac odio dictum tincidunt. Donec ut metus leo. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Sed luctus, dui eu sagittis sodales, nulla nibh sagittis augue, vel porttitor diam enim non metus. Vestibulum aliquam augue neque. Phasellus tincidunt odio eget ullamcorper efficitur. Cras placerat ut turpis pellentesque vulputate. Nam sed consequat tortor. Curabitur finibus sapien dolor. Ut eleifend tellus nec erat pulvinar dignissim. Nam non arcu purus. Vivamus et massa massa.&lt;/p&gt;\n&#x27;, &#x27;short_description&#x27;: &#x27;&lt;p&gt;This is a simple, virtual product.&lt;/p&gt;\n&#x27;, &#x27;sku&#x27;: &#x27;woo-single&#x27;, &#x27;price&#x27;: &#x27;2&#x27;, &#x27;regular_price&#x27;: &#x27;3&#x27;, &#x27;sale_price&#x27;: &#x27;2&#x27;, &#x27;date_on_sale_from&#x27;: None, &#x27;date_on_sale_from_gmt&#x27;: None, &#x27;date_on_sale_to&#x27;: None, &#x27;date_on_sale_to_gmt&#x27;: None, &#x27;on_sale&#x27;: True, &#x27;purchasable&#x27;: True, &#x27;total_sales&#x27;: 0, &#x27;virtual&#x27;: True, &#x27;downloadable&#x27;: True, &#x27;downloads&#x27;: [{&#x27;id&#x27;: &#x27;a0fdda89-5f0e-440d-93f5-188e12c910d1&#x27;, &#x27;name&#x27;: &#x27;Single&#x27;, &#x27;file&#x27;: &#x27;https://demo.woothemes.com/woocommerce/wp-content/uploads/sites/56/2017/08/single.jpg&#x27;}], &#x27;download_limit&#x27;: 1, &#x27;download_expiry&#x27;: 1, &#x27;external_url&#x27;: &#x27;&#x27;, &#x27;button_text&#x27;: &#x27;&#x27;, &#x27;tax_status&#x27;: &#x27;taxable&#x27;, &#x27;tax_class&#x27;: &#x27;&#x27;, &#x27;manage_stock&#x27;: False, &#x27;stock_quantity&#x27;: None, &#x27;backorders&#x27;: &#x27;no&#x27;, &#x27;backorders_allowed&#x27;: False, &#x27;backordered&#x27;: False, &#x27;low_stock_amount&#x27;: None, &#x27;sold_individually&#x27;: False, &#x27;weight&#x27;: &#x27;&#x27;, &#x27;dimensions&#x27;: {&#x27;length&#x27;: &#x27;&#x27;, &#x27;width&#x27;: &#x27;&#x27;, &#x27;height&#x27;: &#x27;&#x27;}, &#x27;shipping_required&#x27;: False, &#x27;shipping_taxable&#x27;: False, &#x27;shipping_class&#x27;: &#x27;&#x27;, &#x27;shipping_class_id&#x27;: 0, &#x27;reviews_allowed&#x27;: True, &#x27;average_rating&#x27;: &#x27;0.00&#x27;, &#x27;rating_count&#x27;: 0, &#x27;upsell_ids&#x27;: [], &#x27;cross_sell_ids&#x27;: [], &#x27;parent_id&#x27;: 0, &#x27;purchase_note&#x27;: &#x27;&#x27;, &#x27;categories&#x27;: [{&#x27;id&#x27;: 27, &#x27;name&#x27;: &#x27;Music&#x27;, &#x27;slug&#x27;: &#x27;music&#x27;}], &#x27;tags&#x27;: [], &#x27;images&#x27;: [{&#x27;id&#x27;: 54, &#x27;date_created&#x27;: &#x27;2019-01-16T13:02:10&#x27;, &#x27;date_created_gmt&#x27;: &#x27;2019-01-16T13:02:10&#x27;, &#x27;date_modified&#x27;: &#x27;2019-01-16T13:02:10&#x27;, &#x27;date_modified_gmt&#x27;: &#x27;2019-01-16T13:02:10&#x27;, &#x27;src&#x27;: &#x27;http://localhost:8888/demosite/wp-content/uploads/2019/01/single-1.jpg&#x27;, &#x27;name&#x27;: &#x27;single-1.jpg&#x27;, &#x27;alt&#x27;: &#x27;&#x27;}], &#x27;attributes&#x27;: [], &#x27;default_attributes&#x27;: [], &#x27;variations&#x27;: [], &#x27;grouped_products&#x27;: [], &#x27;menu_order&#x27;: 0, &#x27;price_html&#x27;: &#x27;&lt;del aria-hidden=&quot;true&quot;&gt;&lt;span class=&quot;woocommerce-Price-amount amount&quot;&gt;&lt;bdi&gt;&lt;span class=&quot;woocommerce-Price-currencySymbol&quot;&gt;&amp;#8377;&lt;/span&gt;3.00&lt;/bdi&gt;&lt;/span&gt;&lt;/del&gt; &lt;ins&gt;&lt;span class=&quot;woocommerce-Price-amount amount&quot;&gt;&lt;bdi&gt;&lt;span class=&quot;woocommerce-Price-currencySymbol&quot;&gt;&amp;#8377;&lt;/span&gt;2.00&lt;/bdi&gt;&lt;/span&gt;&lt;/ins&gt;&#x27;, &#x27;related_ids&#x27;: [24], &#x27;meta_data&#x27;: [], &#x27;stock_status&#x27;: &#x27;instock&#x27;, &#x27;has_options&#x27;: False, &#x27;_links&#x27;: {&#x27;self&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:8888/demosite/wp-json/wc/v3/products/25&#x27;}], &#x27;collection&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:8888/demosite/wp-json/wc/v3/products&#x27;}]}}, {&#x27;id&#x27;: 24, &#x27;name&#x27;: &#x27;Album&#x27;, &#x27;slug&#x27;: &#x27;album&#x27;, &#x27;permalink&#x27;: &#x27;http://localhost:8888/demosite/product/album/&#x27;, &#x27;date_created&#x27;: &#x27;2019-01-16T13:01:54&#x27;, &#x27;date_created_gmt&#x27;: &#x27;2019-01-16T13:01:54&#x27;, &#x27;date_modified&#x27;: &#x27;2019-01-16T13:01:54&#x27;, &#x27;date_modified_gmt&#x27;: &#x27;2019-01-16T13:01:54&#x27;, &#x27;type&#x27;: &#x27;simple&#x27;, &#x27;status&#x27;: &#x27;publish&#x27;, &#x27;featured&#x27;: False, &#x27;catalog_visibility&#x27;: &#x27;visible&#x27;, &#x27;description&#x27;: &#x27;&lt;p&gt;Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum sagittis orci ac odio dictum tincidunt. Donec ut metus leo. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Sed luctus, dui eu sagittis sodales, nulla nibh sagittis augue, vel porttitor diam enim non metus. Vestibulum aliquam augue neque. Phasellus tincidunt odio eget ullamcorper efficitur. Cras placerat ut turpis pellentesque vulputate. Nam sed consequat tortor. Curabitur finibus sapien dolor. Ut eleifend tellus nec erat pulvinar dignissim. Nam non arcu purus. Vivamus et massa massa.&lt;/p&gt;\n&#x27;, &#x27;short_description&#x27;: &#x27;&lt;p&gt;This is a simple, virtual product.&lt;/p&gt;\n&#x27;, &#x27;sku&#x27;: &#x27;woo-album&#x27;, &#x27;price&#x27;: &#x27;15&#x27;, &#x27;regular_price&#x27;: &#x27;15&#x27;, &#x27;sale_price&#x27;: &#x27;&#x27;, &#x27;date_on_sale_from&#x27;: None, &#x27;date_on_sale_from_gmt&#x27;: None, &#x27;date_on_sale_to&#x27;: None, &#x27;date_on_sale_to_gmt&#x27;: None, &#x27;on_sale&#x27;: False, &#x27;purchasable&#x27;: True, &#x27;total_sales&#x27;: 0, &#x27;virtual&#x27;: True, &#x27;downloadable&#x27;: True, &#x27;downloads&#x27;: [{&#x27;id&#x27;: &#x27;356506a5-cc15-41b9-801b-9104dda1702c&#x27;, &#x27;name&#x27;: &#x27;Single 1&#x27;, &#x27;file&#x27;: &#x27;https://demo.woothemes.com/woocommerce/wp-content/uploads/sites/56/2017/08/single.jpg&#x27;}, {&#x27;id&#x27;: &#x27;18e70c59-59f3-43a3-8525-ce1ea0c12943&#x27;, &#x27;name&#x27;: &#x27;Single 2&#x27;, &#x27;file&#x27;: &#x27;https://demo.woothemes.com/woocommerce/wp-content/uploads/sites/56/2017/08/album.jpg&#x27;}], &#x27;download_limit&#x27;: 1, &#x27;download_expiry&#x27;: 1, &#x27;external_url&#x27;: &#x27;&#x27;, &#x27;button_text&#x27;: &#x27;&#x27;, &#x27;tax_status&#x27;: &#x27;taxable&#x27;, &#x27;tax_class&#x27;: &#x27;&#x27;, &#x27;manage_stock&#x27;: False, &#x27;stock_quantity&#x27;: None, &#x27;backorders&#x27;: &#x27;no&#x27;, &#x27;backorders_allowed&#x27;: False, &#x27;backordered&#x27;: False, &#x27;low_stock_amount&#x27;: None, &#x27;sold_individually&#x27;: False, &#x27;weight&#x27;: &#x27;&#x27;, &#x27;dimensions&#x27;: {&#x27;length&#x27;: &#x27;&#x27;, &#x27;width&#x27;: &#x27;&#x27;, &#x27;height&#x27;: &#x27;&#x27;}, &#x27;shipping_required&#x27;: False, &#x27;shipping_taxable&#x27;: False, &#x27;shipping_class&#x27;: &#x27;&#x27;, &#x27;shipping_class_id&#x27;: 0, &#x27;reviews_allowed&#x27;: True, &#x27;average_rating&#x27;: &#x27;0.00&#x27;, &#x27;rating_count&#x27;: 0, &#x27;upsell_ids&#x27;: [], &#x27;cross_sell_ids&#x27;: [], &#x27;parent_id&#x27;: 0, &#x27;purchase_note&#x27;: &#x27;&#x27;, &#x27;categories&#x27;: [{&#x27;id&#x27;: 27, &#x27;name&#x27;: &#x27;Music&#x27;, &#x27;slug&#x27;: &#x27;music&#x27;}], &#x27;tags&#x27;: [], &#x27;images&#x27;: [{&#x27;id&#x27;: 53, &#x27;date_created&#x27;: &#x27;2019-01-16T13:02:09&#x27;, &#x27;date_created_gmt&#x27;: &#x27;2019-01-16T13:02:09&#x27;, &#x27;date_modified&#x27;: &#x27;2019-01-16T13:02:09&#x27;, &#x27;date_modified_gmt&#x27;: &#x27;2019-01-16T13:02:09&#x27;, &#x27;src&#x27;: &#x27;http://localhost:8888/demosite/wp-content/uploads/2019/01/album-1.jpg&#x27;, &#x27;name&#x27;: &#x27;album-1.jpg&#x27;, &#x27;alt&#x27;: &#x27;&#x27;}], &#x27;attributes&#x27;: [], &#x27;default_attributes&#x27;: [], &#x27;variations&#x27;: [], &#x27;grouped_products&#x27;: [], &#x27;menu_order&#x27;: 0, &#x27;price_html&#x27;: &#x27;&lt;span class=&quot;woocommerce-Price-amount amount&quot;&gt;&lt;bdi&gt;&lt;span class=&quot;woocommerce-Price-currencySymbol&quot;&gt;&amp;#8377;&lt;/span&gt;15.00&lt;/bdi&gt;&lt;/span&gt;&#x27;, &#x27;related_ids&#x27;: [25], &#x27;meta_data&#x27;: [], &#x27;stock_status&#x27;: &#x27;instock&#x27;, &#x27;has_options&#x27;: False, &#x27;_links&#x27;: {&#x27;self&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:8888/demosite/wp-json/wc/v3/products/24&#x27;}], &#x27;collection&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:8888/demosite/wp-json/wc/v3/products&#x27;}]}}, {&#x27;id&#x27;: 18, &#x27;name&#x27;: &#x27;Cap&#x27;, &#x27;slug&#x27;: &#x27;cap&#x27;, &#x27;permalink&#x27;: &#x27;http://localhost:8888/demosite/product/cap/&#x27;, &#x27;date_created&#x27;: &#x27;2019-01-16T13:01:53&#x27;, &#x27;date_created_gmt&#x27;: &#x27;2019-01-16T13:01:53&#x27;, &#x27;date_modified&#x27;: &#x27;2019-01-16T13:01:53&#x27;, &#x27;date_modified_gmt&#x27;: &#x27;2019-01-16T13:01:53&#x27;, &#x27;type&#x27;: &#x27;simple&#x27;, &#x27;status&#x27;: &#x27;publish&#x27;, &#x27;featured&#x27;: True, &#x27;catalog_visibility&#x27;: &#x27;visible&#x27;, &#x27;description&#x27;: &#x27;&lt;p&gt;Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Vestibulum tortor quam, feugiat vitae, ultricies eget, tempor sit amet, ante. Donec eu libero sit amet quam egestas semper. Aenean ultricies mi vitae est. Mauris placerat eleifend leo.&lt;/p&gt;\n&#x27;, &#x27;short_description&#x27;: &#x27;&lt;p&gt;This is a simple product.&lt;/p&gt;\n&#x27;, &#x27;sku&#x27;: &#x27;woo-cap&#x27;, &#x27;price&#x27;: &#x27;16&#x27;, &#x27;regular_price&#x27;: &#x27;18&#x27;, &#x27;sale_price&#x27;: &#x27;16&#x27;, &#x27;date_on_sale_from&#x27;: None, &#x27;date_on_sale_from_gmt&#x27;: None, &#x27;date_on_sale_to&#x27;: None, &#x27;date_on_sale_to_gmt&#x27;: None, &#x27;on_sale&#x27;: True, &#x27;purchasable&#x27;: True, &#x27;total_sales&#x27;: 0, &#x27;virtual&#x27;: False, &#x27;downloadable&#x27;: False, &#x27;downloads&#x27;: [], &#x27;download_limit&#x27;: 0, &#x27;download_expiry&#x27;: 0, &#x27;external_url&#x27;: &#x27;&#x27;, &#x27;button_text&#x27;: &#x27;&#x27;, &#x27;tax_status&#x27;: &#x27;taxable&#x27;, &#x27;tax_class&#x27;: &#x27;&#x27;, &#x27;manage_stock&#x27;: False, &#x27;stock_quantity&#x27;: None, &#x27;backorders&#x27;: &#x27;no&#x27;, &#x27;backorders_allowed&#x27;: False, &#x27;backordered&#x27;: False, &#x27;low_stock_amount&#x27;: None, &#x27;sold_individually&#x27;: False, &#x27;weight&#x27;: &#x27;0.6&#x27;, &#x27;dimensions&#x27;: {&#x27;length&#x27;: &#x27;8&#x27;, &#x27;width&#x27;: &#x27;6.5&#x27;, &#x27;height&#x27;: &#x27;4&#x27;}, &#x27;shipping_required&#x27;: True, &#x27;shipping_taxable&#x27;: True, &#x27;shipping_class&#x27;: &#x27;&#x27;, &#x27;shipping_class_id&#x27;: 0, &#x27;reviews_allowed&#x27;: True, &#x27;average_rating&#x27;: &#x27;0.00&#x27;, &#x27;rating_count&#x27;: 0, &#x27;upsell_ids&#x27;: [], &#x27;cross_sell_ids&#x27;: [], &#x27;parent_id&#x27;: 0, &#x27;purchase_note&#x27;: &#x27;&#x27;, &#x27;categories&#x27;: [{&#x27;id&#x27;: 25, &#x27;name&#x27;: &#x27;Accessories&#x27;, &#x27;slug&#x27;: &#x27;accessories&#x27;}], &#x27;tags&#x27;: [], &#x27;images&#x27;: [{&#x27;id&#x27;: 47, &#x27;date_created&#x27;: &#x27;2019-01-16T13:02:04&#x27;, &#x27;date_created_gmt&#x27;: &#x27;2019-01-16T13:02:04&#x27;, &#x27;date_modified&#x27;: &#x27;2019-01-16T13:02:04&#x27;, &#x27;date_modified_gmt&#x27;: &#x27;2019-01-16T13:02:04&#x27;, &#x27;src&#x27;: &#x27;http://localhost:8888/demosite/wp-content/uploads/2019/01/cap-2.jpg&#x27;, &#x27;name&#x27;: &#x27;cap-2.jpg&#x27;, &#x27;alt&#x27;: &#x27;&#x27;}], &#x27;attributes&#x27;: [{&#x27;id&#x27;: 1, &#x27;name&#x27;: &#x27;color&#x27;, &#x27;position&#x27;: 0, &#x27;visible&#x27;: True, &#x27;variation&#x27;: False, &#x27;options&#x27;: [&#x27;Yellow&#x27;]}], &#x27;default_attributes&#x27;: [], &#x27;variations&#x27;: [], &#x27;grouped_products&#x27;: [], &#x27;menu_order&#x27;: 0, &#x27;price_html&#x27;: &#x27;&lt;del aria-hidden=&quot;true&quot;&gt;&lt;span class=&quot;woocommerce-Price-amount amount&quot;&gt;&lt;bdi&gt;&lt;span class=&quot;woocommerce-Price-currencySymbol&quot;&gt;&amp;#8377;&lt;/span&gt;18.00&lt;/bdi&gt;&lt;/span&gt;&lt;/del&gt; &lt;ins&gt;&lt;span class=&quot;woocommerce-Price-amount amount&quot;&gt;&lt;bdi&gt;&lt;span class=&quot;woocommerce-Price-currencySymbol&quot;&gt;&amp;#8377;&lt;/span&gt;16.00&lt;/bdi&gt;&lt;/span&gt;&lt;/ins&gt;&#x27;, &#x27;related_ids&#x27;: [33, 19, 16, 17], &#x27;meta_data&#x27;: [], &#x27;stock_status&#x27;: &#x27;instock&#x27;, &#x27;has_options&#x27;: False, &#x27;_links&#x27;: {&#x27;self&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:8888/demosite/wp-json/wc/v3/products/18&#x27;}], &#x27;collection&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:8888/demosite/wp-json/wc/v3/products&#x27;}]}}, {&#x27;id&#x27;: 19, &#x27;name&#x27;: &#x27;Sunglasses&#x27;, &#x27;slug&#x27;: &#x27;sunglasses&#x27;, &#x27;permalink&#x27;: &#x27;http://localhost:8888/demosite/product/sunglasses/&#x27;, &#x27;date_created&#x27;: &#x27;2019-01-16T13:01:53&#x27;, &#x27;date_created_gmt&#x27;: &#x27;2019-01-16T13:01:53&#x27;, &#x27;date_modified&#x27;: &#x27;2019-01-16T13:01:53&#x27;, &#x27;date_modified_gmt&#x27;: &#x27;2019-01-16T13:01:53&#x27;, &#x27;type&#x27;: &#x27;simple&#x27;, &#x27;status&#x27;: &#x27;publish&#x27;, &#x27;featured&#x27;: True, &#x27;catalog_visibility&#x27;: &#x27;visible&#x27;, &#x27;description&#x27;: &#x27;&lt;p&gt;Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Vestibulum tortor quam, feugiat vitae, ultricies eget, tempor sit amet, ante. Donec eu libero sit amet quam egestas semper. Aenean ultricies mi vitae est. Mauris placerat eleifend leo.&lt;/p&gt;\n&#x27;, &#x27;short_description&#x27;: &#x27;&lt;p&gt;This is a simple product.&lt;/p&gt;\n&#x27;, &#x27;sku&#x27;: &#x27;woo-sunglasses&#x27;, &#x27;price&#x27;: &#x27;90&#x27;, &#x27;regular_price&#x27;: &#x27;90&#x27;, &#x27;sale_price&#x27;: &#x27;&#x27;, &#x27;date_on_sale_from&#x27;: None, &#x27;date_on_sale_from_gmt&#x27;: None, &#x27;date_on_sale_to&#x27;: None, &#x27;date_on_sale_to_gmt&#x27;: None, &#x27;on_sale&#x27;: False, &#x27;purchasable&#x27;: True, &#x27;total_sales&#x27;: 0, &#x27;virtual&#x27;: False, &#x27;downloadable&#x27;: False, &#x27;downloads&#x27;: [], &#x27;download_limit&#x27;: 0, &#x27;download_expiry&#x27;: 0, &#x27;external_url&#x27;: &#x27;&#x27;, &#x27;button_text&#x27;: &#x27;&#x27;, &#x27;tax_status&#x27;: &#x27;taxable&#x27;, &#x27;tax_class&#x27;: &#x27;&#x27;, &#x27;manage_stock&#x27;: False, &#x27;stock_quantity&#x27;: None, &#x27;backorders&#x27;: &#x27;no&#x27;, &#x27;backorders_allowed&#x27;: False, &#x27;backordered&#x27;: False, &#x27;low_stock_amount&#x27;: None, &#x27;sold_individually&#x27;: False, &#x27;weight&#x27;: &#x27;0.2&#x27;, &#x27;dimensions&#x27;: {&#x27;length&#x27;: &#x27;4&#x27;, &#x27;width&#x27;: &#x27;1.4&#x27;, &#x27;height&#x27;: &#x27;1&#x27;}, &#x27;shipping_required&#x27;: True, &#x27;shipping_taxable&#x27;: True, &#x27;shipping_class&#x27;: &#x27;&#x27;, &#x27;shipping_class_id&#x27;: 0, &#x27;reviews_allowed&#x27;: True, &#x27;average_rating&#x27;: &#x27;0.00&#x27;, &#x27;rating_count&#x27;: 0, &#x27;upsell_ids&#x27;: [], &#x27;cross_sell_ids&#x27;: [], &#x27;parent_id&#x27;: 0, &#x27;purchase_note&#x27;: &#x27;&#x27;, &#x27;categories&#x27;: [{&#x27;id&#x27;: 25, &#x27;name&#x27;: &#x27;Accessories&#x27;, &#x27;slug&#x27;: &#x27;accessories&#x27;}], &#x27;tags&#x27;: [], &#x27;images&#x27;: [{&#x27;id&#x27;: 48, &#x27;date_created&#x27;: &#x27;2019-01-16T13:02:05&#x27;, &#x27;date_created_gmt&#x27;: &#x27;2019-01-16T13:02:05&#x27;, &#x27;date_modified&#x27;: &#x27;2019-01-16T13:02:05&#x27;, &#x27;date_modified_gmt&#x27;: &#x27;2019-01-16T13:02:05&#x27;, &#x27;src&#x27;: &#x27;http://localhost:8888/demosite/wp-content/uploads/2019/01/sunglasses-2.jpg&#x27;, &#x27;name&#x27;: &#x27;sunglasses-2.jpg&#x27;, &#x27;alt&#x27;: &#x27;&#x27;}], &#x27;attributes&#x27;: [], &#x27;default_attributes&#x27;: [], &#x27;variations&#x27;: [], &#x27;grouped_products&#x27;: [], &#x27;menu_order&#x27;: 0, &#x27;price_html&#x27;: &#x27;&lt;span class=&quot;woocommerce-Price-amount amount&quot;&gt;&lt;bdi&gt;&lt;span class=&quot;woocommerce-Price-currencySymbol&quot;&gt;&amp;#8377;&lt;/span&gt;90.00&lt;/bdi&gt;&lt;/span&gt;&#x27;, &#x27;related_ids&#x27;: [17, 16, 33, 18], &#x27;meta_data&#x27;: [], &#x27;stock_status&#x27;: &#x27;instock&#x27;, &#x27;has_options&#x27;: False, &#x27;_links&#x27;: {&#x27;self&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:8888/demosite/wp-json/wc/v3/products/19&#x27;}], &#x27;collection&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:8888/demosite/wp-json/wc/v3/products&#x27;}]}}, {&#x27;id&#x27;: 20, &#x27;name&#x27;: &#x27;Hoodie with Pocket&#x27;, &#x27;slug&#x27;: &#x27;hoodie-with-pocket&#x27;, &#x27;permalink&#x27;: &#x27;http://localhost:8888/demosite/product/hoodie-with-pocket/&#x27;, &#x27;date_created&#x27;: &#x27;2019-01-16T13:01:53&#x27;, &#x27;date_created_gmt&#x27;: &#x27;2019-01-16T13:01:53&#x27;, &#x27;date_modified&#x27;: &#x27;2019-01-16T13:01:53&#x27;, &#x27;date_modified_gmt&#x27;: &#x27;2019-01-16T13:01:53&#x27;, &#x27;type&#x27;: &#x27;simple&#x27;, &#x27;status&#x27;: &#x27;publish&#x27;, &#x27;featured&#x27;: True, &#x27;catalog_visibility&#x27;: &#x27;hidden&#x27;, &#x27;description&#x27;: &#x27;&lt;p&gt;Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Vestibulum tortor quam, feugiat vitae, ultricies eget, tempor sit amet, ante. Donec eu libero sit amet quam egestas semper. Aenean ultricies mi vitae est. Mauris placerat eleifend leo.&lt;/p&gt;\n&#x27;, &#x27;short_description&#x27;: &#x27;&lt;p&gt;This is a simple product.&lt;/p&gt;\n&#x27;, &#x27;sku&#x27;: &#x27;woo-hoodie-with-pocket&#x27;, &#x27;price&#x27;: &#x27;35&#x27;, &#x27;regular_price&#x27;: &#x27;45&#x27;, &#x27;sale_price&#x27;: &#x27;35&#x27;, &#x27;date_on_sale_from&#x27;: None, &#x27;date_on_sale_from_gmt&#x27;: None, &#x27;date_on_sale_to&#x27;: None, &#x27;date_on_sale_to_gmt&#x27;: None, &#x27;on_sale&#x27;: True, &#x27;purchasable&#x27;: True, &#x27;total_sales&#x27;: 0, &#x27;virtual&#x27;: False, &#x27;downloadable&#x27;: False, &#x27;downloads&#x27;: [], &#x27;download_limit&#x27;: 0, &#x27;download_expiry&#x27;: 0, &#x27;external_url&#x27;: &#x27;&#x27;, &#x27;button_text&#x27;: &#x27;&#x27;, &#x27;tax_status&#x27;: &#x27;taxable&#x27;, &#x27;tax_class&#x27;: &#x27;&#x27;, &#x27;manage_stock&#x27;: False, &#x27;stock_quantity&#x27;: None, &#x27;backorders&#x27;: &#x27;no&#x27;, &#x27;backorders_allowed&#x27;: False, &#x27;backordered&#x27;: False, &#x27;low_stock_amount&#x27;: None, &#x27;sold_individually&#x27;: False, &#x27;weight&#x27;: &#x27;3&#x27;, &#x27;dimensions&#x27;: {&#x27;length&#x27;: &#x27;10&#x27;, &#x27;width&#x27;: &#x27;8&#x27;, &#x27;height&#x27;: &#x27;2&#x27;}, &#x27;shipping_required&#x27;: True, &#x27;shipping_taxable&#x27;: True, &#x27;shipping_class&#x27;: &#x27;&#x27;, &#x27;shipping_class_id&#x27;: 0, &#x27;reviews_allowed&#x27;: True, &#x27;average_rating&#x27;: &#x27;0.00&#x27;, &#x27;rating_count&#x27;: 0, &#x27;upsell_ids&#x27;: [], &#x27;cross_sell_ids&#x27;: [], &#x27;parent_id&#x27;: 0, &#x27;purchase_note&#x27;: &#x27;&#x27;, &#x27;categories&#x27;: [{&#x27;id&#x27;: 23, &#x27;name&#x27;: &#x27;Hoodies&#x27;, &#x27;slug&#x27;: &#x27;hoodies&#x27;}], &#x27;tags&#x27;: [], &#x27;images&#x27;: [{&#x27;id&#x27;: 49, &#x27;date_created&#x27;: &#x27;2019-01-16T13:02:06&#x27;, &#x27;date_created_gmt&#x27;: &#x27;2019-01-16T13:02:06&#x27;, &#x27;date_modified&#x27;: &#x27;2019-01-16T13:02:06&#x27;, &#x27;date_modified_gmt&#x27;: &#x27;2019-01-16T13:02:06&#x27;, &#x27;src&#x27;: &#x27;http://localhost:8888/demosite/wp-content/uploads/2019/01/hoodie-with-pocket-2.jpg&#x27;, &#x27;name&#x27;: &#x27;hoodie-with-pocket-2.jpg&#x27;, &#x27;alt&#x27;: &#x27;&#x27;}], &#x27;attributes&#x27;: [{&#x27;id&#x27;: 1, &#x27;name&#x27;: &#x27;color&#x27;, &#x27;position&#x27;: 0, &#x27;visible&#x27;: True, &#x27;variation&#x27;: False, &#x27;options&#x27;: [&#x27;Gray&#x27;]}], &#x27;default_attributes&#x27;: [], &#x27;variations&#x27;: [], &#x27;grouped_products&#x27;: [], &#x27;menu_order&#x27;: 0, &#x27;price_html&#x27;: &#x27;&lt;del aria-hidden=&quot;true&quot;&gt;&lt;span class=&quot;woocommerce-Price-amount amount&quot;&gt;&lt;bdi&gt;&lt;span class=&quot;woocommerce-Price-currencySymbol&quot;&gt;&amp;#8377;&lt;/span&gt;45.00&lt;/bdi&gt;&lt;/span&gt;&lt;/del&gt; &lt;ins&gt;&lt;span class=&quot;woocommerce-Price-amount amount&quot;&gt;&lt;bdi&gt;&lt;span class=&quot;woocommerce-Price-currencySymbol&quot;&gt;&amp;#8377;&lt;/span&gt;35.00&lt;/bdi&gt;&lt;/span&gt;&lt;/ins&gt;&#x27;, &#x27;related_ids&#x27;: [13, 21, 14], &#x27;meta_data&#x27;: [], &#x27;stock_status&#x27;: &#x27;instock&#x27;, &#x27;has_options&#x27;: False, &#x27;_links&#x27;: {&#x27;self&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:8888/demosite/wp-json/wc/v3/products/20&#x27;}], &#x27;collection&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:8888/demosite/wp-json/wc/v3/products&#x27;}]}}, {&#x27;id&#x27;: 21, &#x27;name&#x27;: &#x27;Hoodie with Zipper&#x27;, &#x27;slug&#x27;: &#x27;hoodie-with-zipper&#x27;, &#x27;permalink&#x27;: &#x27;http://localhost:8888/demosite/product/hoodie-with-zipper/&#x27;, &#x27;date_created&#x27;: &#x27;2019-01-16T13:01:53&#x27;, &#x27;date_created_gmt&#x27;: &#x27;2019-01-16T13:01:53&#x27;, &#x27;date_modified&#x27;: &#x27;2019-01-16T13:01:53&#x27;, &#x27;date_modified_gmt&#x27;: &#x27;2019-01-16T13:01:53&#x27;, &#x27;type&#x27;: &#x27;simple&#x27;, &#x27;status&#x27;: &#x27;publish&#x27;, &#x27;featured&#x27;: True, &#x27;catalog_visibility&#x27;: &#x27;visible&#x27;, &#x27;description&#x27;: &#x27;&lt;p&gt;Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Vestibulum tortor quam, feugiat vitae, ultricies eget, tempor sit amet, ante. Donec eu libero sit amet quam egestas semper. Aenean ultricies mi vitae est. Mauris placerat eleifend leo.&lt;/p&gt;\n&#x27;, &#x27;short_description&#x27;: &#x27;&lt;p&gt;This is a simple product.&lt;/p&gt;\n&#x27;, &#x27;sku&#x27;: &#x27;woo-hoodie-with-zipper&#x27;, &#x27;price&#x27;: &#x27;45&#x27;, &#x27;regular_price&#x27;: &#x27;45&#x27;, &#x27;sale_price&#x27;: &#x27;&#x27;, &#x27;date_on_sale_from&#x27;: None, &#x27;date_on_sale_from_gmt&#x27;: None, &#x27;date_on_sale_to&#x27;: None, &#x27;date_on_sale_to_gmt&#x27;: None, &#x27;on_sale&#x27;: False, &#x27;purchasable&#x27;: True, &#x27;total_sales&#x27;: 0, &#x27;virtual&#x27;: False, &#x27;downloadable&#x27;: False, &#x27;downloads&#x27;: [], &#x27;download_limit&#x27;: 0, &#x27;download_expiry&#x27;: 0, &#x27;external_url&#x27;: &#x27;&#x27;, &#x27;button_text&#x27;: &#x27;&#x27;, &#x27;tax_status&#x27;: &#x27;taxable&#x27;, &#x27;tax_class&#x27;: &#x27;&#x27;, &#x27;manage_stock&#x27;: False, &#x27;stock_quantity&#x27;: None, &#x27;backorders&#x27;: &#x27;no&#x27;, &#x27;backorders_allowed&#x27;: False, &#x27;backordered&#x27;: False, &#x27;low_stock_amount&#x27;: None, &#x27;sold_individually&#x27;: False, &#x27;weight&#x27;: &#x27;2&#x27;, &#x27;dimensions&#x27;: {&#x27;length&#x27;: &#x27;8&#x27;, &#x27;width&#x27;: &#x27;6&#x27;, &#x27;height&#x27;: &#x27;2&#x27;}, &#x27;shipping_required&#x27;: True, &#x27;shipping_taxable&#x27;: True, &#x27;shipping_class&#x27;: &#x27;&#x27;, &#x27;shipping_class_id&#x27;: 0, &#x27;reviews_allowed&#x27;: True, &#x27;average_rating&#x27;: &#x27;0.00&#x27;, &#x27;rating_count&#x27;: 0, &#x27;upsell_ids&#x27;: [], &#x27;cross_sell_ids&#x27;: [], &#x27;parent_id&#x27;: 0, &#x27;purchase_note&#x27;: &#x27;&#x27;, &#x27;categories&#x27;: [{&#x27;id&#x27;: 23, &#x27;name&#x27;: &#x27;Hoodies&#x27;, &#x27;slug&#x27;: &#x27;hoodies&#x27;}], &#x27;tags&#x27;: [], &#x27;images&#x27;: [{&#x27;id&#x27;: 50, &#x27;date_created&#x27;: &#x27;2019-01-16T13:02:06&#x27;, &#x27;date_created_gmt&#x27;: &#x27;2019-01-16T13:02:06&#x27;, &#x27;date_modified&#x27;: &#x27;2019-01-16T13:02:06&#x27;, &#x27;date_modified_gmt&#x27;: &#x27;2019-01-16T13:02:06&#x27;, &#x27;src&#x27;: &#x27;http://localhost:8888/demosite/wp-content/uploads/2019/01/hoodie-with-zipper-2.jpg&#x27;, &#x27;name&#x27;: &#x27;hoodie-with-zipper-2.jpg&#x27;, &#x27;alt&#x27;: &#x27;&#x27;}], &#x27;attributes&#x27;: [], &#x27;default_attributes&#x27;: [], &#x27;variations&#x27;: [], &#x27;grouped_products&#x27;: [], &#x27;menu_order&#x27;: 0, &#x27;price_html&#x27;: &#x27;&lt;span class=&quot;woocommerce-Price-amount amount&quot;&gt;&lt;bdi&gt;&lt;span class=&quot;woocommerce-Price-currencySymbol&quot;&gt;&amp;#8377;&lt;/span&gt;45.00&lt;/bdi&gt;&lt;/span&gt;&#x27;, &#x27;related_ids&#x27;: [13, 14], &#x27;meta_data&#x27;: [], &#x27;stock_status&#x27;: &#x27;instock&#x27;, &#x27;has_options&#x27;: False, &#x27;_links&#x27;: {&#x27;self&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:8888/demosite/wp-json/wc/v3/products/21&#x27;}], &#x27;collection&#x27;: [{&#x27;href&#x27;: &#x27;http://localhost:8888/demosite/wp-json/wc/v3/products&#x27;}]}}]<br/></div></td></tr></tbody></table></body></html>
