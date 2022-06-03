@@ -16,3 +16,7 @@ class ProductsDAO:
     def get_product_by_id(self, product_id):
         sql = f"SELECT * FROM demosite.wp_posts WHERE ID={product_id};"
         return self.db_helper.execute_select(sql)
+
+    def get_product_after_given_date(self, str_date):
+        sql = f'SELECT * FROM demosite.wp_posts WHERE post_type="product" AND post_date > "{str_date}" LIMIT 5000;'
+        return self.db_helper.execute_select(sql)
