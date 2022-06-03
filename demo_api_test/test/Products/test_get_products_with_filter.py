@@ -21,7 +21,7 @@ class TestListProductsWithFilter:
 
         payload = dict()
         payload['after'] = after_created_date
-        payload['per_page'] = 100
+        # payload['per_page'] = 100
 
         # make api call
         rs_api = ProductsHelper().call_list_products(payload)
@@ -40,4 +40,4 @@ class TestListProductsWithFilter:
         ids_diff = list(set(ids_in_rs_api) - set(ids_in_db))
 
         assert not ids_diff, "List products with filter, product ids mismatch with db."
-        # pdb.set_trace()
+        pdb.set_trace()
