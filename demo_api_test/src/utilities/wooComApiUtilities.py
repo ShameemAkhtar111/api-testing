@@ -1,6 +1,5 @@
 import os
 from pprint import pprint
-
 from demo_api_test.src.configs.host_config import WOO_API_HOST
 from demo_api_test.src.utilities.credentials_utility import CredentialsUtility
 from woocommerce import API
@@ -17,7 +16,8 @@ class WooComAPIUtilities:
             url=self.base_url,
             consumer_key=wc_creds['wc_key'],
             consumer_secret=wc_creds['wc_secret'],
-            version="wc/v3"
+            version="wc/v3",
+            timeout = 10
         )
 
     def assert_status_code(self):
