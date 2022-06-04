@@ -37,6 +37,18 @@ class WooComAPIUtilities:
         logger.debug(f"GET API response: {self.rs_json}")
         return self.rs_json
 
+    def post(self, wc_endpoint, data=None, expected_status_code=200):
+        self.url = self.base_url + "wp-json/wc/v3/" + wc_endpoint
+        res = self.wcapi.post(wc_endpoint, data=data)
+        self.status_code = res.status_code
+        self.expected_status_code = expected_status_code
+        self.rs_json = res.json()
+        self.assert_status_code()
+        logger.debug(f"POST API response: {self.rs_json}")
+        return self.rs_json
+
+
+
 if __name__ == '__main__':
     obj = WooComAPIUtilities()
     response_api = obj.get('products')
