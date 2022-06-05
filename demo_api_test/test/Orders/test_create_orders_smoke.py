@@ -23,7 +23,11 @@ def test_create_paid_order_guest_user():
 
     # make a call
     order_json = order_obj.create_order(additional_args=info)
-    import pdb;pdb.set_trace()
+    assert order_json, "Create order for guest user response is empty."
+    assert order_json['customer_id'] == 0, f"Create order for guest user expected customer_id=0 but got {order_json['customer_id']}"
+    assert len(order_json['line_items']) == 1, f"Expected only one item but found {len(order_json['line_items'])}" \
+                                               f"for Order id: {order_json['id']}."
+    # import pdb;pdb.set_trace()
 
     # verify response
 
