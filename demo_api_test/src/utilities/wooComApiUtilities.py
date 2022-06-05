@@ -1,6 +1,5 @@
 import os
 from pprint import pprint
-
 from demo_api_test.src.configs.host_config import WOO_API_HOST
 from demo_api_test.src.utilities.credentials_utility import CredentialsUtility
 from woocommerce import API
@@ -17,7 +16,8 @@ class WooComAPIUtilities:
             url=self.base_url,
             consumer_key=wc_creds['wc_key'],
             consumer_secret=wc_creds['wc_secret'],
-            version="wc/v3"
+            version="wc/v3",
+            timeout = 10
         )
 
     def assert_status_code(self):
@@ -36,6 +36,18 @@ class WooComAPIUtilities:
         # import pdb; pdb.set_trace()
         logger.debug(f"GET API response: {self.rs_json}")
         return self.rs_json
+
+    def post(self, wc_endpoint, data=None, expected_status_code=200):
+        self.url = self.base_url + "wp-json/wc/v3/" + wc_endpoint
+        res = self.wcapi.post(wc_endpoint, data=data)
+        self.status_code = res.status_code
+        self.expected_status_code = expected_status_code
+        self.rs_json = res.json()
+        self.assert_status_code()
+        logger.debug(f"POST API response: {self.rs_json}")
+        return self.rs_json
+
+
 
 if __name__ == '__main__':
     obj = WooComAPIUtilities()
