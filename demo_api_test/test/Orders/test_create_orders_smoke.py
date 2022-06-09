@@ -26,7 +26,6 @@ def test_create_paid_order_guest_user(orders_setup):
     # get a product from db
     order_helper = orders_setup['order_helper']
     product_id = orders_setup['product_id']
-    import pdb;pdb.set_trace()
     customer_id = 0
     info = {
         "line_items": [
@@ -54,7 +53,6 @@ def test_create_paid_order_new_customer(orders_setup):
 
     order_helper = orders_setup['order_helper']
     product_id = orders_setup['product_id']
-    import pdb;pdb.set_trace()
     cust_info = customer_helper.create_customer()
     customer_id = cust_info['id']
     info = {
