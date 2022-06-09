@@ -13,5 +13,40 @@ WOO_API_HOST = {
 }
 
 DB_HOST = {
+    'machine1': {
+        "test": {
+            'host': 'localhost',
+            'database': 'demosite',
+            'table_prefix': 'wp_',
+            'port': 8889,
+            'socket': None
+        },
+        "dev": {
+
+
+        },
+        "prod": {
+
+        }
+    },
+
+    'docker': {
+        "test": {
+            'host': 'host.docker.internal',
+            'database': 'demosite',
+            'table_prefix': 'wp_',
+            'port': 8889,
+            'socket': None
+        },
+        "dev": {
+
+
+        },
+        "prod": {
+
+        }
+
+    }
+
 
 }
