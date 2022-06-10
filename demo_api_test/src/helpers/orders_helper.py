@@ -42,3 +42,9 @@ class OrdersHelper:
             assert product['product_id'] in api_product_ids, f"Create order does not have at least one expected " \
                                                              f"product in DB. Product id: {product['product_id']}." \
                                                              f" Order id: {order_json['id']}. "
+
+    def update_order(self, order_id, payload):
+        return self.wooApiObj.put(f'orders/{order_id}', params=payload)
+
+    def retrieve_an_order(self, order_id):
+        return self.wooApiObj.get(f'orders/{order_id}')
