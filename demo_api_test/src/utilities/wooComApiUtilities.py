@@ -47,6 +47,17 @@ class WooComAPIUtilities:
         logger.debug(f"POST API response: {self.rs_json}")
         return self.rs_json
 
+    def put(self, wc_endpoint, params=None, expected_status_code=200):
+        self.url = self.base_url + "wp-json/wc/v3/" + wc_endpoint
+        res = self.wcapi.put(wc_endpoint, data=params)
+        self.status_code = res.status_code
+        self.expected_status_code = expected_status_code
+        self.rs_json = res.json()
+        self.assert_status_code()
+        # import pdb; pdb.set_trace()
+        logger.debug(f"PUT API response: {self.rs_json}")
+        return self.rs_json
+
 
 
 if __name__ == '__main__':

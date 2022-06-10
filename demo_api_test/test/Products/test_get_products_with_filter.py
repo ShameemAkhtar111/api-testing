@@ -40,4 +40,3 @@ class TestListProductsWithFilter:
         ids_diff = list(set(ids_in_rs_api) - set(ids_in_db))
 
         assert not ids_diff, "List products with filter, product ids mismatch with db."
-        pdb.set_trace()
