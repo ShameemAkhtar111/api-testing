@@ -1,6 +1,5 @@
-import string
-
 import openpyxl
+
 
 class ExcelUtil:
     __filePath = None
@@ -9,10 +8,10 @@ class ExcelUtil:
     __row = None
     __col = None
 
-    def __init__(self, filePath):
-        if filePath is not None:
-            if ".xlsx" in filePath:
-                self.__filePath = filePath
+    def __init__(self, file_path):
+        if file_path is not None:
+            if ".xlsx" in file_path:
+                self.__filePath = file_path
                 self.__workBook = openpyxl.load_workbook(self.__filePath)
                 self.__sheet = self.__workBook.active
                 self.__row = self.__sheet.max_row
@@ -43,9 +42,7 @@ class ExcelUtil:
     def get_column_num(self, col_name, sheet_name=None):
         col_index = -1
         if sheet_name is not None:
-            self.__sheet = self.__workBook[sheet_name]
-            self.__row = self.__sheet.max_row
-            self.__col = self.__sheet.max_column
+            self.__row, self.__col = self.get_row_and_column_count(sheet_name)
 
         for col in self.__sheet.iter_cols(min_row=1, max_col=self.__col, max_row=1):
             for cell in col:
@@ -61,12 +58,19 @@ class ExcelUtil:
         cell_value = self.get_cell_data(row_num, col_index, sheet_name)
         return cell_value
 
+    def set_cell_data(self, row_num, col_num, data_to_write, sheet_name=None):
+        if sheet_name is not None:
+            self.get_row_and_column_count()
+        cellToWrite = self.__sheet.cell(row_num, col_num)
+        cellToWrite.value = data_to_write
+        self.__workBook.save(self.__filePath)
 
 if __name__ == '__main__':
     obj = ExcelUtil(r"C:\Users\Shameem Akhtar\Downloads\Compressed\Olympic Athletes.xlsx")
     print(obj.get_row_and_column_count("OlympicAthletes"))
     print(obj.get_active_sheet_name())
     print(obj.get_all_sheet_names())
-    print(obj.get_cell_data(1,2))
+    print(obj.get_cell_data(1, 2))
     print(obj.get_column_num("Sport"))
-    print(obj.get_cell_data_based_on_col_name("Sport",6))
+    print(obj.get_cell_data_based_on_col_name("Sport", 6))
+    print(obj.set_cell_data(8620, 6,"hey"))
