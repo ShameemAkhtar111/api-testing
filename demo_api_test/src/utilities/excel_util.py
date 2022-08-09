@@ -59,11 +59,30 @@ class ExcelUtil:
         return cell_value
 
     def set_cell_data(self, row_num, col_num, data_to_write, sheet_name=None):
-        if sheet_name is not None:
-            self.get_row_and_column_count()
-        cellToWrite = self.__sheet.cell(row_num, col_num)
-        cellToWrite.value = data_to_write
-        self.__workBook.save(self.__filePath)
+        try:
+            if sheet_name is not None:
+                self.get_row_and_column_count()
+            cellToWrite = self.__sheet.cell(row_num, col_num)
+            cellToWrite.value = data_to_write
+            self.__workBook.save(self.__filePath)
+            return True
+        except Exception as e:
+            print(e)
+            return False
+
+    def set_cell_data_based_on_col_name(self, row_num, col_name, data_to_write, sheet_name=None):
+        try:
+            col_index = self.get_column_num(col_name, sheet_name)
+            if col_index == -1:
+                raise Exception(f"No cell found for column: {col_name}")
+            cellToWrite = self.__sheet.cell(row_num, col_index)
+            cellToWrite.value = data_to_write
+            self.__workBook.save(self.__filePath)
+            return True
+        except Exception as e:
+            print(e)
+            return False
+
 
 if __name__ == '__main__':
     obj = ExcelUtil(r"C:\Users\Shameem Akhtar\Downloads\Compressed\Olympic Athletes.xlsx")
@@ -74,3 +93,4 @@ if __name__ == '__main__':
     print(obj.get_column_num("Sport"))
     print(obj.get_cell_data_based_on_col_name("Sport", 6))
     print(obj.set_cell_data(8620, 6,"hey"))
+    print(obj.set_cell_data_based_on_col_name(8621, "Sport", "Random_sport"))
