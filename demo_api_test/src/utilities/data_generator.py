@@ -39,9 +39,10 @@ class DataGenerator:
             self.__person['lastname'] = self.__fake.last_name_female()
 
         self.__person['fullname'] = self.__person['firstname'] + " " + self.__person['lastname']
-        self.__person['birthdate'] = profile.get('birthdate').strftime("%m/%d/%Y")
+        dob_date_time_format = profile.get('birthdate')
+        self.__person['birthdate'] = dob_date_time_format.strftime("%m/%d/%Y")
         end_date = date.today()
-        difference_in_years = relativedelta(end_date, profile.get('birthdate')).years
+        difference_in_years = relativedelta(end_date, dob_date_time_format).years
         self.__person['age'] = difference_in_years
         self.__person['email'] = self.__person['firstname'] + self.__person['lastname']+"@"+ self.__fake.free_email_domain()
         self.__person['username'] = profile['username']
@@ -53,6 +54,14 @@ class DataGenerator:
         self.__person['company'] = self.__company
         self.__person['ssn'] = self.__fake.ssn()
         self.__person['phone_number'] = self.__fake.phone_number()
+        card_details = self.__fake.credit_card_full().split("\n")
+        cc_num_exp = card_details[2].split(" ")
+        cc_cvv = card_details[3].split(": ")
+        self.__cc_details['credit_card_type'] = card_details[0]
+        self.__cc_details['credit_card_number'] = cc_num_exp[0]
+        self.__cc_details['credit_card_exp_date'] = cc_num_exp[1]
+        self.__cc_details['credit_card_cvv'] = cc_cvv[1]
+        self.__person['credit_card'] = self.__cc_details
         # self.__person['credit_card'] = self.__fake.credit_card_full()
 
 
@@ -126,7 +135,6 @@ class DataGenerator:
                                 "'maestro', 'mastercard', 'visa16', 'visa13', 'visa19', 'amex', 'discover',"
                                 " 'diners', 'jcb15', 'jcb16','master','visa'")
         else:
-            # self.__person['credit_card'] = self.__fake.credit_card_full()
             card_details = self.__fake.credit_card_full().split("\n")
         cc_num_exp = card_details[2].split(" ")
         cc_cvv = card_details[3].split(": ")
@@ -137,9 +145,7 @@ class DataGenerator:
 
         self.__person['credit_card'] = self.__cc_details
 
-        # return self.__person.get('credit_card')
-
-    def get_credit_card_number(self,cardType=None):
+    def get_credit_card_number(self, cardType=None):
         if len(self.__cc_details) == 0:
             if cardType is not None:
                 self.get_full_credit_card(cardType)
@@ -166,19 +172,23 @@ class DataGenerator:
         return self.__person.get('credit_card').get('credit_card_cvv')
 
 
+# dg = DataGenerator('en-US')
+# print(dg.get_birthdate())
+# print(dg.get_age())
 if __name__ == "__main__":
     files_list = os.listdir()
+    sorted(files_list)
     excel_file = None
     for file in files_list:
         if '.xlsx' in file:
             excel_file = file
             break
-    print(os.path.abspath(excel_file))
-    df = pd.read_excel(os.path.abspath(excel_file), engine="openpyxl")
+    excel_file_path = os.path.abspath(excel_file)
+    df = pd.read_excel(excel_file_path, engine="openpyxl")
     df.columns = df.columns.str.lower()
     df.fillna("nan", inplace = True)
     dict_vals = df.to_dict()
-    local_val= dict_vals.get('locale')[0]
+    local_val = dict_vals.get('locale')[0]
     no_of_records = int(dict_vals.get('# of data')[0])
     headers = list(dict_vals.get('headers').values())
     frmat = dict_vals.get('format').values()
@@ -190,32 +200,36 @@ if __name__ == "__main__":
     for x in headers:
         header_dictionary[x] = []
 
-    for key in header_dictionary.keys():
-        x = []
-        for i in range(1, no_of_records+1):
-            dg = DataGenerator('en-IN')
+    for i in range(1, no_of_records + 1):
+        dg = DataGenerator('en_US')
+        for key in header_dictionary.keys():
+            x = header_dictionary[key]
             if key.lower() == 'sno':
-                x.append(i)
+                header_dictionary[key] = x.append(i)
             elif key.lower() == "firstname":
-                x.append(dg.get_first_name())
+                header_dictionary[key] = x.append(dg.get_first_name())
             elif key.lower() == "lastname":
-                x.append(dg.get_last_name())
+                header_dictionary[key] = x.append(dg.get_last_name())
             elif key.lower() == "address" or 'address' in key.lower():
-                x.append(dg.get_full_address())
+                header_dictionary[key] = x.append(dg.get_full_address())
             elif key.lower() == "age":
-                x.append(dg.get_age())
+                header_dictionary[key] = x.append(dg.get_age())
             elif key.lower() == "dob" or key.lower() == "dateofbirth":
-                x.append(dg.get_birthdate())
+                header_dictionary[key] = x.append(dg.get_birthdate())
             elif key.lower() == "creditcardnumber" or key.lower() == "ccnumber":
-                x.append(dg.get_credit_card_number())
+                header_dictionary[key] = x.append(dg.get_credit_card_number())
             elif key.lower() == "creditcardexpirydate" or key.lower() == "ccexpirydate" or key.lower() == "expirydate":
-                x.append(dg.get_credit_card_exp_date())
-        header_dictionary[key] = x
+                header_dictionary[key] = x.append(dg.get_credit_card_exp_date())
+            else:
+                x.append(["None"])
+            header_dictionary[key] = x
+
     print(header_dictionary)
     df2 = pd.DataFrame(header_dictionary)
-    writer = pd.ExcelWriter("test_data2.xlsx", engine='xlsxwriter')
-    df2.to_excel(writer, sheet_name="Sheet1", index=False)
-    writer.save()
+    with pd.ExcelWriter("Test_Data_Result.xlsx", engine='xlsxwriter') as writer:
+        df2.to_excel(writer, sheet_name="Sheet2", index=False)
+        writer.save()
+
 
 
 
